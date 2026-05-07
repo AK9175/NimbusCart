@@ -94,6 +94,10 @@ override.tf.json
 *_override.tf
 *_override.tf.json
 
+# ─── AWS CDK ────────────────────────────────────────────────────────────────
+infrastructure/cdk.out/
+infrastructure/cdk.context.json
+
 # ─── Misc ────────────────────────────────────────────────────────────────────
 *.pid
 *.seed

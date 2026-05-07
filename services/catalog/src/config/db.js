@@ -6,6 +6,7 @@ const pool = new Pool({
   database: process.env.DB_NAME || 'catalog_db',
   user: process.env.DB_USER || 'catalog_user',
   password: process.env.DB_PASSWORD || 'password',
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
 });
 
 pool.on('error', (err) => {

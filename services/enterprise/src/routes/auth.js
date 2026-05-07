@@ -5,12 +5,27 @@ const verifyToken = require('../middleware/verifyToken');
 
 const router = express.Router();
 
-router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+router.get('/google', (req, res, next) => {
+  console.log('[Auth] /auth/google hit — initiating OAuth flow');
+  next();
+}, passport.authenticate('google', { scope: ['profile', 'email'] }));
 
 router.get(
   '/google/callback',
-  passport.authenticate('google', { failureRedirect: `${process.env.FRONTEND_URL}/login?error=auth_failed` }),
+  (req, res, next) => {
+    console.log('[Auth] /auth/google/callback hit — code present:', !!req.query.code);
+    passport.authenticate('google', {
+      failureRedirect: `${process.env.FRONTEND_URL}/login?error=auth_failed`,
+    })(req, res, (err) => {
+      if (err) {
+        console.error('[Auth] Passport authenticate error:', err.message || err);
+        return res.redirect(`${process.env.FRONTEND_URL}/login?error=auth_error`);
+      }
+      next();
+    });
+  },
   (req, res) => {
+    console.log('[Auth] OAuth success — user:', req.user?.id, req.user?.email);
     const token = jwt.sign(
       {
         id: req.user.id,
@@ -23,7 +38,9 @@ router.get(
       { expiresIn: '7d' }
     );
 
-    res.redirect(`${process.env.FRONTEND_URL}?token=${token}`);
+    const redirectUrl = `${process.env.FRONTEND_URL}?token=${token}`;
+    console.log('[Auth] Redirecting to:', redirectUrl.substring(0, 80) + '...');
+    res.redirect(redirectUrl);
   }
 );
 

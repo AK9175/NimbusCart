@@ -48,6 +48,13 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   const auth = useAuthStore()
 
+  // OAuth callback lands on /?token=<jwt> — capture before auth check redirects away
+  const token = to.query.token
+  if (token) {
+    auth.setToken(token)
+    return next({ path: '/', query: {} })
+  }
+
   if (to.meta.requiresAuth && !auth.isAuthenticated) {
     return next('/login')
   }

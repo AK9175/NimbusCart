@@ -12,6 +12,7 @@ import * as codebuild from 'aws-cdk-lib/aws-codebuild';
 import * as codepipeline from 'aws-cdk-lib/aws-codepipeline';
 import * as codepipeline_actions from 'aws-cdk-lib/aws-codepipeline-actions';
 import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as ecr_assets from 'aws-cdk-lib/aws-ecr-assets';
 import { Construct } from 'constructs';
 import * as path from 'path';
 
@@ -128,7 +129,7 @@ export class NimbusCartStack extends cdk.Stack {
         GOOGLE_CLIENT_ID:      cdk.SecretValue.unsafePlainText(googleClientId),
         GOOGLE_CLIENT_SECRET:  cdk.SecretValue.unsafePlainText(googleClientSecret),
       },
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
 
     // ─────────────────────────────────────────────────────────────────────
@@ -141,7 +142,7 @@ export class NimbusCartStack extends cdk.Stack {
         generateStringKey: 'password',
         excludeCharacters: '"@/\\ ',
       },
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
 
     const enterpriseDb = new rds.DatabaseInstance(this, 'EnterpriseDb', {
@@ -159,7 +160,7 @@ export class NimbusCartStack extends cdk.Stack {
       allocatedStorage:    20,
       maxAllocatedStorage: 50,
       deleteAutomatedBackups: true,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
 
     // ─────────────────────────────────────────────────────────────────────
@@ -173,7 +174,7 @@ export class NimbusCartStack extends cdk.Stack {
         generateStringKey: 'password',
         excludeCharacters: '"@/\\ ',
       },
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
 
     const catalogDb = new rds.DatabaseInstance(this, 'CatalogDb', {
@@ -191,7 +192,7 @@ export class NimbusCartStack extends cdk.Stack {
       allocatedStorage:    20,
       maxAllocatedStorage: 50,
       deleteAutomatedBackups: true,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
 
     // ─────────────────────────────────────────────────────────────────────
@@ -204,7 +205,7 @@ export class NimbusCartStack extends cdk.Stack {
         generateStringKey: 'password',
         excludeCharacters: '"@/\\ ',
       },
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
 
     const ordersDb = new rds.DatabaseInstance(this, 'OrdersDb', {
@@ -222,7 +223,7 @@ export class NimbusCartStack extends cdk.Stack {
       allocatedStorage:    20,
       maxAllocatedStorage: 50,
       deleteAutomatedBackups: true,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
 
     // ─────────────────────────────────────────────────────────────────────
@@ -371,7 +372,7 @@ export class NimbusCartStack extends cdk.Stack {
       const logGroup = new logs.LogGroup(this, `${capitalize(opts.name)}Logs`, {
         logGroupName:    `/ecs/nimbuscart-${opts.name}`,
         retention:       logs.RetentionDays.ONE_WEEK,
-        removalPolicy:   cdk.RemovalPolicy.DESTROY,
+        removalPolicy:   cdk.RemovalPolicy.RETAIN,
       });
 
       const taskDef = new ecs.FargateTaskDefinition(this, `${capitalize(opts.name)}TaskDef`, {
@@ -382,13 +383,15 @@ export class NimbusCartStack extends cdk.Stack {
         taskRole,
       });
 
+      // Force linux/amd64 — ECS Fargate runs x86_64; Mac builds default to arm64
       const containerImage = opts.buildArgs
         ? ecs.ContainerImage.fromAsset(
             path.join(__dirname, '../../services', opts.serviceDir),
-            { buildArgs: opts.buildArgs },
+            { buildArgs: opts.buildArgs, platform: ecr_assets.Platform.LINUX_AMD64 },
           )
         : ecs.ContainerImage.fromAsset(
             path.join(__dirname, '../../services', opts.serviceDir),
+            { platform: ecr_assets.Platform.LINUX_AMD64 },
           );
 
       taskDef.addContainer(opts.name, {
@@ -402,11 +405,11 @@ export class NimbusCartStack extends cdk.Stack {
           logGroup,
         }),
         healthCheck: {
-          command:     ['CMD-SHELL', `curl -f http://localhost:${opts.port}/health || exit 1`],
+          command:     ['CMD-SHELL', `node -e "require('http').get('http://localhost:${opts.port}/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"`],
           interval:    cdk.Duration.seconds(30),
-          timeout:     cdk.Duration.seconds(5),
+          timeout:     cdk.Duration.seconds(10),
           retries:     3,
-          startPeriod: cdk.Duration.seconds(90),
+          startPeriod: cdk.Duration.seconds(120),
         },
       });
 
@@ -430,7 +433,7 @@ export class NimbusCartStack extends cdk.Stack {
       name:       'enterprise',
       serviceDir: 'enterprise',
       port:       3000,
-      command:    ['sh', '-c', 'npm run migrate && npm start'],
+      command:    ['sh', '-c', 'npm run migrate && npm run seed && npm start'],
       environment: {
         PORT:                 '3000',
         DB_HOST:              enterpriseDb.instanceEndpoint.hostname,
@@ -458,7 +461,7 @@ export class NimbusCartStack extends cdk.Stack {
       name:       'catalog',
       serviceDir: 'catalog',
       port:       3001,
-      command:    ['sh', '-c', 'npm run migrate && npm start'],
+      command:    ['sh', '-c', 'npm run migrate && npm run seed && npm start'],
       environment: {
         PORT:     '3001',
         DB_HOST:  catalogDb.instanceEndpoint.hostname,
@@ -480,7 +483,7 @@ export class NimbusCartStack extends cdk.Stack {
       name:       'orders',
       serviceDir: 'orders',
       port:       3004,
-      command:    ['sh', '-c', 'npm run migrate && npm start'],
+      command:    ['sh', '-c', 'npm run migrate && npm run seed && npm start'],
       environment: {
         PORT:     '3004',
         DB_HOST:  ordersDb.instanceEndpoint.hostname,
@@ -548,7 +551,7 @@ export class NimbusCartStack extends cdk.Stack {
     const uiLogGroup = new logs.LogGroup(this, 'UiLogs', {
       logGroupName:  '/ecs/nimbuscart-ui',
       retention:     logs.RetentionDays.ONE_WEEK,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
 
     const uiTaskDef = new ecs.FargateTaskDefinition(this, 'UiTaskDef', {
@@ -563,6 +566,8 @@ export class NimbusCartStack extends cdk.Stack {
       image: ecs.ContainerImage.fromAsset(
         path.join(__dirname, '../../services/ui'),
         {
+          // Force linux/amd64 — ECS Fargate runs x86_64; Mac builds default to arm64
+          platform: ecr_assets.Platform.LINUX_AMD64,
           buildArgs: {
             VITE_ENTERPRISE_URL: uiApiBase,
             VITE_CATALOG_URL:    uiApiBase,
@@ -578,11 +583,11 @@ export class NimbusCartStack extends cdk.Stack {
         logGroup:     uiLogGroup,
       }),
       healthCheck: {
-        command:     ['CMD-SHELL', 'curl -f http://localhost:80/ || exit 1'],
+        command:     ['CMD-SHELL', 'wget -q -O /dev/null http://localhost:80/ || exit 1'],
         interval:    cdk.Duration.seconds(30),
-        timeout:     cdk.Duration.seconds(5),
+        timeout:     cdk.Duration.seconds(10),
         retries:     3,
-        startPeriod: cdk.Duration.seconds(30),
+        startPeriod: cdk.Duration.seconds(60),
       },
     });
 
@@ -729,7 +734,7 @@ export class NimbusCartStack extends cdk.Stack {
             logGroup: new logs.LogGroup(this, 'CodeBuildLogs', {
               logGroupName:  '/codebuild/nimbuscart',
               retention:     logs.RetentionDays.ONE_WEEK,
-              removalPolicy: cdk.RemovalPolicy.DESTROY,
+              removalPolicy: cdk.RemovalPolicy.RETAIN,
             }),
           },
         },

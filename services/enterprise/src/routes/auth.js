@@ -17,6 +17,7 @@ router.get(
         email: req.user.email,
         name: req.user.name,
         avatar: req.user.avatar,
+        role: req.user.role || 'customer',
       },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
@@ -39,6 +40,7 @@ router.get('/me', verifyToken, (req, res) => {
     email: req.user.email,
     name: req.user.name,
     avatar: req.user.avatar,
+    role: req.user.role || 'customer',
   });
 });
 

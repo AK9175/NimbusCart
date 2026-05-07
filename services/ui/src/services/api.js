@@ -1,24 +1,30 @@
 import axios from 'axios'
 
-const ENTERPRISE_URL = import.meta.env.VITE_ENTERPRISE_URL || 'http://localhost:3000'
+function createClient(baseURL) {
+  const client = axios.create({ baseURL })
 
-const enterprise = axios.create({ baseURL: ENTERPRISE_URL })
+  client.interceptors.request.use((config) => {
+    const token = localStorage.getItem('token')
+    if (token) config.headers.Authorization = `Bearer ${token}`
+    return config
+  })
 
-enterprise.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token')
-  if (token) config.headers.Authorization = `Bearer ${token}`
-  return config
-})
-
-enterprise.interceptors.response.use(
-  (res) => res,
-  (err) => {
-    if (err.response?.status === 401) {
-      localStorage.removeItem('token')
-      window.location.href = '/login'
+  client.interceptors.response.use(
+    (res) => res,
+    (err) => {
+      if (err.response?.status === 401) {
+        localStorage.removeItem('token')
+        window.location.href = '/login'
+      }
+      return Promise.reject(err)
     }
-    return Promise.reject(err)
-  }
-)
+  )
 
-export { enterprise }
+  return client
+}
+
+export const enterprise = createClient(import.meta.env.VITE_ENTERPRISE_URL || 'http://localhost:3000')
+export const catalog    = createClient(import.meta.env.VITE_CATALOG_URL    || 'http://localhost:3001')
+export const cart       = createClient(import.meta.env.VITE_CART_URL       || 'http://localhost:3002')
+export const checkout   = createClient(import.meta.env.VITE_CHECKOUT_URL   || 'http://localhost:3003')
+export const orders     = createClient(import.meta.env.VITE_ORDERS_URL     || 'http://localhost:3004')

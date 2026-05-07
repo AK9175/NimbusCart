@@ -14,6 +14,30 @@ const routes = [
     component: () => import('../views/HomeView.vue'),
     meta: { requiresAuth: true },
   },
+  {
+    path: '/catalog',
+    name: 'Catalog',
+    component: () => import('../views/CatalogView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/cart',
+    name: 'Cart',
+    component: () => import('../views/CartView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/orders',
+    name: 'Orders',
+    component: () => import('../views/OrdersView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/enterprise',
+    name: 'Enterprise',
+    component: () => import('../views/EnterpriseView.vue'),
+    meta: { requiresAuth: true, requiresRole: 'admin' },
+  },
 ]
 
 const router = createRouter({
@@ -29,6 +53,10 @@ router.beforeEach((to, from, next) => {
   }
 
   if (to.path === '/login' && auth.isAuthenticated) {
+    return next('/')
+  }
+
+  if (to.meta.requiresRole && auth.user?.role !== to.meta.requiresRole) {
     return next('/')
   }
 

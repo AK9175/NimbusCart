@@ -1,0 +1,213 @@
+version: '3.9'
+
+# ─────────────────────────────────────────────
+#  NimbusCart — single-command local stack
+#  Usage:  docker compose up --build
+# ─────────────────────────────────────────────
+
+services:
+
+  # ── Databases ──────────────────────────────
+
+  enterprise-db:
+    image: postgres:15-alpine
+    container_name: nimbuscart-enterprise-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: enterprise_db
+      POSTGRES_USER: enterprise_user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5434:5432"
+    volumes:
+      - enterprise_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U enterprise_user -d enterprise_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  catalog-db:
+    image: postgres:15-alpine
+    container_name: nimbuscart-catalog-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: catalog_db
+      POSTGRES_USER: catalog_user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5435:5432"
+    volumes:
+      - catalog_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U catalog_user -d catalog_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  orders-db:
+    image: postgres:15-alpine
+    container_name: nimbuscart-orders-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: orders_db
+      POSTGRES_USER: orders_user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5433:5432"
+    volumes:
+      - orders_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orders_user -d orders_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: nimbuscart-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── Backend Services ────────────────────────
+
+  enterprise:
+    build:
+      context: ./services/enterprise
+    container_name: nimbuscart-enterprise
+    restart: unless-stopped
+    depends_on:
+      enterprise-db:
+        condition: service_healthy
+    environment:
+      PORT: 3000
+      DB_HOST: enterprise-db
+      DB_PORT: 5432
+      DB_NAME: enterprise_db
+      DB_USER: enterprise_user
+      DB_PASSWORD: password
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:-http://localhost:3000/auth/google/callback}
+      JWT_SECRET: ${JWT_SECRET:-nimbuscart_jwt_super_secret_2024_change_in_prod}
+      SESSION_SECRET: ${SESSION_SECRET:-nimbuscart_session_secret_2024_change_in_prod}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5174}
+    # Run migrations then start
+    command: sh -c "npm run migrate && npm start"
+    ports:
+      - "3000:3000"
+
+  catalog:
+    build:
+      context: ./services/catalog
+    container_name: nimbuscart-catalog
+    restart: unless-stopped
+    depends_on:
+      catalog-db:
+        condition: service_healthy
+    environment:
+      PORT: 3001
+      DB_HOST: catalog-db
+      DB_PORT: 5432
+      DB_NAME: catalog_db
+      DB_USER: catalog_user
+      DB_PASSWORD: password
+      JWT_SECRET: ${JWT_SECRET:-nimbuscart_jwt_super_secret_2024_change_in_prod}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5174}
+    command: sh -c "npm run migrate && npm start"
+    ports:
+      - "3001:3001"
+
+  cart:
+    build:
+      context: ./services/cart
+    container_name: nimbuscart-cart
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      PORT: 3002
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET:-nimbuscart_jwt_super_secret_2024_change_in_prod}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5174}
+    ports:
+      - "3002:3002"
+
+  checkout:
+    build:
+      context: ./services/checkout
+    container_name: nimbuscart-checkout
+    restart: unless-stopped
+    depends_on:
+      - cart
+      - orders
+    environment:
+      PORT: 3003
+      CART_SERVICE_URL: http://cart:3002
+      ORDERS_SERVICE_URL: http://orders:3004
+      JWT_SECRET: ${JWT_SECRET:-nimbuscart_jwt_super_secret_2024_change_in_prod}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5174}
+    ports:
+      - "3003:3003"
+
+  orders:
+    build:
+      context: ./services/orders
+    container_name: nimbuscart-orders
+    restart: unless-stopped
+    depends_on:
+      orders-db:
+        condition: service_healthy
+    environment:
+      PORT: 3004
+      DB_HOST: orders-db
+      DB_PORT: 5432
+      DB_NAME: orders_db
+      DB_USER: orders_user
+      DB_PASSWORD: password
+      JWT_SECRET: ${JWT_SECRET:-nimbuscart_jwt_super_secret_2024_change_in_prod}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5174}
+    command: sh -c "npm run migrate && npm start"
+    ports:
+      - "3004:3004"
+
+  # ── Frontend ────────────────────────────────
+
+  ui:
+    build:
+      context: ./services/ui
+      args:
+        # These are baked into the JS bundle — point to the exposed host ports
+        VITE_ENTERPRISE_URL: ${VITE_ENTERPRISE_URL:-http://localhost:3000}
+        VITE_CATALOG_URL: ${VITE_CATALOG_URL:-http://localhost:3001}
+        VITE_CART_URL: ${VITE_CART_URL:-http://localhost:3002}
+        VITE_CHECKOUT_URL: ${VITE_CHECKOUT_URL:-http://localhost:3003}
+        VITE_ORDERS_URL: ${VITE_ORDERS_URL:-http://localhost:3004}
+    container_name: nimbuscart-ui
+    restart: unless-stopped
+    depends_on:
+      - enterprise
+      - catalog
+      - cart
+      - checkout
+      - orders
+    ports:
+      - "5174:80"
+
+# ── Volumes ─────────────────────────────────
+
+volumes:
+  enterprise_db_data:
+  catalog_db_data:
+  orders_db_data:
+  redis_data:

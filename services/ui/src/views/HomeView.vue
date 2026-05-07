@@ -5,48 +5,66 @@
     <div class="hero">
       <div class="hero-content">
         <h1>Welcome back, <span class="highlight">{{ auth.user?.name?.split(' ')[0] }}</span> 👋</h1>
-        <p>Here's what's happening in your store today.</p>
+        <p v-if="auth.isAdmin">Here's what's happening in your store today.</p>
+        <p v-else>Browse products, manage your cart, and track your orders.</p>
       </div>
     </div>
 
     <div class="container">
-      <!-- Summary Cards -->
-      <div class="summary-grid" v-if="summary">
-        <div class="card stat-card">
-          <div class="stat-icon">📦</div>
-          <div class="stat-info">
-            <div class="stat-value">{{ summary.totalProducts }}</div>
-            <div class="stat-label">Products</div>
+      <!-- Admin: Summary Cards -->
+      <template v-if="auth.isAdmin">
+        <div class="summary-grid" v-if="summary">
+          <div class="card stat-card">
+            <div class="stat-icon">📦</div>
+            <div class="stat-info">
+              <div class="stat-value">{{ summary.totalProducts }}</div>
+              <div class="stat-label">Products</div>
+            </div>
+          </div>
+          <div class="card stat-card">
+            <div class="stat-icon">👥</div>
+            <div class="stat-info">
+              <div class="stat-value">{{ summary.totalCustomers }}</div>
+              <div class="stat-label">Customers</div>
+            </div>
+          </div>
+          <div class="card stat-card">
+            <div class="stat-icon">🛒</div>
+            <div class="stat-info">
+              <div class="stat-value">{{ summary.totalOrders }}</div>
+              <div class="stat-label">Orders</div>
+            </div>
+          </div>
+          <div class="card stat-card">
+            <div class="stat-icon">💰</div>
+            <div class="stat-info">
+              <div class="stat-value">${{ summary.totalRevenue.toFixed(2) }}</div>
+              <div class="stat-label">Revenue</div>
+            </div>
           </div>
         </div>
-        <div class="card stat-card">
-          <div class="stat-icon">👥</div>
-          <div class="stat-info">
-            <div class="stat-value">{{ summary.totalCustomers }}</div>
-            <div class="stat-label">Customers</div>
-          </div>
+        <div class="summary-grid" v-else-if="loading">
+          <div class="card stat-card skeleton" v-for="i in 4" :key="i" />
         </div>
-        <div class="card stat-card">
-          <div class="stat-icon">🛒</div>
-          <div class="stat-info">
-            <div class="stat-value">{{ summary.totalOrders }}</div>
-            <div class="stat-label">Orders</div>
-          </div>
-        </div>
-        <div class="card stat-card">
-          <div class="stat-icon">💰</div>
-          <div class="stat-info">
-            <div class="stat-value">${{ summary.totalRevenue.toFixed(2) }}</div>
-            <div class="stat-label">Revenue</div>
-          </div>
-        </div>
+      </template>
+
+      <!-- Customer: Quick Links -->
+      <div class="quick-links" v-if="!auth.isAdmin">
+        <router-link to="/catalog" class="quick-card card">
+          <div class="quick-icon">🛍️</div>
+          <div class="quick-label">Browse Catalog</div>
+        </router-link>
+        <router-link to="/cart" class="quick-card card">
+          <div class="quick-icon">🛒</div>
+          <div class="quick-label">My Cart</div>
+        </router-link>
+        <router-link to="/orders" class="quick-card card">
+          <div class="quick-icon">📋</div>
+          <div class="quick-label">My Orders</div>
+        </router-link>
       </div>
 
-      <div class="summary-grid" v-else-if="loading">
-        <div class="card stat-card skeleton" v-for="i in 4" :key="i" />
-      </div>
-
-      <!-- Products -->
+      <!-- Featured Products (both roles) -->
       <div class="section">
         <h2 class="section-title">Featured Products</h2>
 
@@ -76,7 +94,7 @@
 import { ref, onMounted } from 'vue'
 import Navbar from '../components/Navbar.vue'
 import { useAuthStore } from '../stores/auth'
-import { enterprise } from '../services/api'
+import { enterprise, catalog } from '../services/api'
 
 const auth = useAuthStore()
 const summary = ref(null)
@@ -85,12 +103,15 @@ const loading = ref(true)
 
 onMounted(async () => {
   try {
-    const [summaryRes, productsRes] = await Promise.all([
-      enterprise.get('/api/enterprise/summary'),
-      enterprise.get('/api/enterprise/products?limit=6'),
-    ])
-    summary.value = summaryRes.data
-    products.value = productsRes.data.data
+    // Featured products come from catalog service (no admin required)
+    const productsRes = await catalog.get('/products?limit=6')
+    products.value = productsRes.data.products
+
+    // Summary only fetched for admins
+    if (auth.isAdmin) {
+      const summaryRes = await enterprise.get('/api/enterprise/summary')
+      summary.value = summaryRes.data
+    }
   } catch (err) {
     console.error('Failed to load dashboard data', err)
   } finally {
@@ -160,6 +181,37 @@ onMounted(async () => {
   font-size: 13px;
   color: #64748b;
   margin-top: 2px;
+}
+
+.quick-links {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 40px;
+}
+
+.quick-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 28px;
+  text-decoration: none;
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.quick-card:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  transform: translateY(-2px);
+}
+
+.quick-icon { font-size: 36px; }
+
+.quick-label {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1e293b;
 }
 
 .section-title {

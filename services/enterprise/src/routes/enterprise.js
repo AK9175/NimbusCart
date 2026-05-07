@@ -1,10 +1,12 @@
 const express = require('express');
 const pool = require('../config/db');
 const verifyToken = require('../middleware/verifyToken');
+const requireRole = require('../middleware/requireRole');
 
 const router = express.Router();
 
 router.use(verifyToken);
+router.use(requireRole('admin'));
 
 router.get('/products', async (req, res) => {
   try {

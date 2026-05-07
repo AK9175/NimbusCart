@@ -7,6 +7,13 @@
 
     <div class="nav-links">
       <router-link to="/">Home</router-link>
+      <router-link to="/catalog">Catalog</router-link>
+      <router-link to="/orders">Orders</router-link>
+      <router-link v-if="auth.isAdmin" to="/enterprise">Enterprise</router-link>
+      <router-link to="/cart" class="cart-link">
+        Cart
+        <span class="cart-badge" v-if="cartCount > 0">{{ cartCount }}</span>
+      </router-link>
     </div>
 
     <div class="nav-user" v-if="auth.user">
@@ -26,12 +33,19 @@
 </template>
 
 <script setup>
+import { computed, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
+import { useCartStore } from '../stores/cart'
 import { useRouter } from 'vue-router'
 import { enterprise } from '../services/api'
 
 const auth = useAuthStore()
+const cartStore = useCartStore()
 const router = useRouter()
+
+const cartCount = computed(() => cartStore.count)
+
+onMounted(() => cartStore.fetch())
 
 async function handleLogout() {
   try {
@@ -73,6 +87,12 @@ async function handleLogout() {
   color: white;
 }
 
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
 .nav-links a {
   color: #94a3b8;
   text-decoration: none;
@@ -84,6 +104,23 @@ async function handleLogout() {
 .nav-links a:hover,
 .nav-links a.router-link-active {
   color: white;
+}
+
+.cart-link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cart-badge {
+  background: #3b82f6;
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 10px;
+  line-height: 1.6;
 }
 
 .nav-user {

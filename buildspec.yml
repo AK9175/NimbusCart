@@ -1,0 +1,127 @@
+version: 0.2
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  NimbusCart — AWS CodeBuild Specification
+#
+#  Pipeline stages (CodePipeline):
+#    Source  →  Build (this file)  →  Deploy (ECS Fargate)
+#
+#  Required CodeBuild environment variables:
+#    AWS_ACCOUNT_ID       — your 12-digit AWS account ID
+#    AWS_DEFAULT_REGION   — e.g. us-west-2
+#    GOOGLE_CLIENT_ID     — from Google Cloud Console
+#    GOOGLE_CLIENT_SECRET — from Google Cloud Console
+#    JWT_SECRET           — shared secret across all services
+#    SESSION_SECRET       — used by Passport session
+#    FRONTEND_URL         — public URL of the UI (ALB or CloudFront)
+#    GOOGLE_CALLBACK_URL  — enterprise service OAuth callback URL
+#
+#  ECR repositories expected (create before first run):
+#    nimbuscart-enterprise
+#    nimbuscart-catalog
+#    nimbuscart-cart
+#    nimbuscart-orders
+#    nimbuscart-checkout
+#    nimbuscart-ui
+# ─────────────────────────────────────────────────────────────────────────────
+
+env:
+  variables:
+    IMAGE_TAG: latest
+
+phases:
+  pre_build:
+    commands:
+      - echo "Logging in to Amazon ECR..."
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+      - ECR_BASE=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+      - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c1-8)
+      - IMAGE_TAG=${COMMIT_HASH:-latest}
+      - echo "Image tag is $IMAGE_TAG"
+
+  build:
+    commands:
+      - echo "Build started on $(date)"
+
+      # ── Enterprise service ──────────────────────────────────────────────────
+      - echo "Building nimbuscart-enterprise..."
+      - docker build -t nimbuscart-enterprise ./services/enterprise
+      - docker tag nimbuscart-enterprise:latest $ECR_BASE/nimbuscart-enterprise:$IMAGE_TAG
+      - docker tag nimbuscart-enterprise:latest $ECR_BASE/nimbuscart-enterprise:latest
+
+      # ── Catalog service ─────────────────────────────────────────────────────
+      - echo "Building nimbuscart-catalog..."
+      - docker build -t nimbuscart-catalog ./services/catalog
+      - docker tag nimbuscart-catalog:latest $ECR_BASE/nimbuscart-catalog:$IMAGE_TAG
+      - docker tag nimbuscart-catalog:latest $ECR_BASE/nimbuscart-catalog:latest
+
+      # ── Cart service ────────────────────────────────────────────────────────
+      - echo "Building nimbuscart-cart..."
+      - docker build -t nimbuscart-cart ./services/cart
+      - docker tag nimbuscart-cart:latest $ECR_BASE/nimbuscart-cart:$IMAGE_TAG
+      - docker tag nimbuscart-cart:latest $ECR_BASE/nimbuscart-cart:latest
+
+      # ── Orders service ──────────────────────────────────────────────────────
+      - echo "Building nimbuscart-orders..."
+      - docker build -t nimbuscart-orders ./services/orders
+      - docker tag nimbuscart-orders:latest $ECR_BASE/nimbuscart-orders:$IMAGE_TAG
+      - docker tag nimbuscart-orders:latest $ECR_BASE/nimbuscart-orders:latest
+
+      # ── Checkout service ────────────────────────────────────────────────────
+      - echo "Building nimbuscart-checkout..."
+      - docker build -t nimbuscart-checkout ./services/checkout
+      - docker tag nimbuscart-checkout:latest $ECR_BASE/nimbuscart-checkout:$IMAGE_TAG
+      - docker tag nimbuscart-checkout:latest $ECR_BASE/nimbuscart-checkout:latest
+
+      # ── UI (Vite build → nginx) ─────────────────────────────────────────────
+      - echo "Building nimbuscart-ui..."
+      - |
+        docker build \
+          --build-arg VITE_ENTERPRISE_URL=$FRONTEND_URL_ENTERPRISE \
+          --build-arg VITE_CATALOG_URL=$FRONTEND_URL_CATALOG \
+          --build-arg VITE_CART_URL=$FRONTEND_URL_CART \
+          --build-arg VITE_CHECKOUT_URL=$FRONTEND_URL_CHECKOUT \
+          --build-arg VITE_ORDERS_URL=$FRONTEND_URL_ORDERS \
+          -t nimbuscart-ui ./services/ui
+      - docker tag nimbuscart-ui:latest $ECR_BASE/nimbuscart-ui:$IMAGE_TAG
+      - docker tag nimbuscart-ui:latest $ECR_BASE/nimbuscart-ui:latest
+
+  post_build:
+    commands:
+      - echo "Pushing images to ECR..."
+
+      - docker push $ECR_BASE/nimbuscart-enterprise:$IMAGE_TAG
+      - docker push $ECR_BASE/nimbuscart-enterprise:latest
+
+      - docker push $ECR_BASE/nimbuscart-catalog:$IMAGE_TAG
+      - docker push $ECR_BASE/nimbuscart-catalog:latest
+
+      - docker push $ECR_BASE/nimbuscart-cart:$IMAGE_TAG
+      - docker push $ECR_BASE/nimbuscart-cart:latest
+
+      - docker push $ECR_BASE/nimbuscart-orders:$IMAGE_TAG
+      - docker push $ECR_BASE/nimbuscart-orders:latest
+
+      - docker push $ECR_BASE/nimbuscart-checkout:$IMAGE_TAG
+      - docker push $ECR_BASE/nimbuscart-checkout:latest
+
+      - docker push $ECR_BASE/nimbuscart-ui:$IMAGE_TAG
+      - docker push $ECR_BASE/nimbuscart-ui:latest
+
+      # ECS rolling-update trigger (one per service)
+      # Assumes ECS cluster "nimbuscart" with one task definition per service.
+      - |
+        for SVC in enterprise catalog cart orders checkout ui; do
+          aws ecs update-service \
+            --cluster nimbuscart \
+            --service nimbuscart-$SVC \
+            --force-new-deployment \
+            --region $AWS_DEFAULT_REGION || echo "WARNING: could not update ECS service $SVC"
+        done
+
+      - echo "Build and push complete on $(date)"
+
+artifacts:
+  files:
+    - "**/*"
+  discard-paths: no

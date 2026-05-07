@@ -1,0 +1,368 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>NimbusCart Project Report</title>
+  <style>
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      color: #111827;
+      line-height: 1.42;
+      margin: 48px;
+      font-size: 12pt;
+    }
+    h1 {
+      color: #0f172a;
+      font-size: 28pt;
+      margin: 0 0 12px;
+      text-align: center;
+    }
+    h2 {
+      color: #1f4e79;
+      font-size: 18pt;
+      margin: 28px 0 10px;
+      border-bottom: 1px solid #cbd5e1;
+      padding-bottom: 4px;
+    }
+    h3 {
+      color: #334155;
+      font-size: 14pt;
+      margin: 18px 0 8px;
+    }
+    p {
+      margin: 0 0 10px;
+    }
+    ul, ol {
+      margin-top: 6px;
+      margin-bottom: 12px;
+    }
+    li {
+      margin-bottom: 4px;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 10px 0 18px;
+      font-size: 10.5pt;
+    }
+    th {
+      background: #eaf2f8;
+      color: #0f172a;
+      font-weight: bold;
+      text-align: left;
+    }
+    th, td {
+      border: 1px solid #94a3b8;
+      padding: 7px 8px;
+      vertical-align: top;
+    }
+    .cover {
+      text-align: center;
+      margin-top: 110px;
+      page-break-after: always;
+    }
+    .cover .subtitle {
+      font-size: 16pt;
+      color: #334155;
+      margin-top: 8px;
+    }
+    .cover .meta {
+      margin-top: 64px;
+      font-size: 12pt;
+      color: #1f2937;
+      text-align: left;
+      display: inline-block;
+      line-height: 1.7;
+    }
+    .toc {
+      page-break-after: always;
+    }
+    .toc ol {
+      line-height: 1.7;
+    }
+    .page-break {
+      page-break-before: always;
+    }
+    .figure {
+      text-align: center;
+      margin: 14px 0 22px;
+    }
+    .figure img {
+      max-width: 92%;
+      height: auto;
+      border: 1px solid #cbd5e1;
+      padding: 6px;
+      background: #ffffff;
+    }
+    .caption {
+      color: #475569;
+      font-size: 10pt;
+      margin-top: 6px;
+    }
+    .note {
+      background: #f8fafc;
+      border-left: 4px solid #1f4e79;
+      padding: 10px 12px;
+      margin: 12px 0 16px;
+    }
+    code {
+      font-family: Consolas, Monaco, monospace;
+      font-size: 10.5pt;
+    }
+  </style>
+</head>
+<body>
+  <section class="cover">
+    <h1>NimbusCart</h1>
+    <div class="subtitle">Project Report</div>
+    <div class="meta">
+      <strong>Project:</strong> E-commerce and Enterprise analytics platform<br>
+      <strong>Course:</strong> CMPE-282 Cloud Services<br>
+      <strong>Version:</strong> 3.0<br>
+      <strong>Date:</strong> May 7, 2026<br>
+      <strong>Repository:</strong> git@github.com:AK9175/NimbusCart.git<br>
+      <strong>Team Name:</strong> Cloud 9<br>
+      <strong>Team Members:</strong><br>
+      Akshay Sunil Navani<br>
+      Atharva Kulkarni<br>
+      Joshini Naagraaj<br>
+      Shantanu Zadbuke
+    </div>
+  </section>
+
+  <section>
+    <h2>Revision History</h2>
+    <table>
+      <tr>
+        <th style="width: 18%;">Date</th>
+        <th style="width: 14%;">Version</th>
+        <th>Description</th>
+        <th style="width: 20%;">Author</th>
+      </tr>
+      <tr>
+        <td>May 7, 2026</td>
+        <td>1.0</td>
+        <td>Initial NimbusCart project report with architecture, actor model, deliverables, risks, and test plan.</td>
+        <td>Project Team</td>
+      </tr>
+      <tr>
+        <td>May 7, 2026</td>
+        <td>2.0</td>
+        <td>Added team details, course metadata, and project classification for the Cloud Services submission.</td>
+        <td>Project Team</td>
+      </tr>
+      <tr>
+        <td>May 7, 2026</td>
+        <td>3.0</td>
+        <td>Updated report content to match the current NimbusCart README, service map, AWS deployment scope, and CI/CD details.</td>
+        <td>Project Team</td>
+      </tr>
+    </table>
+  </section>
+
+  <section class="toc">
+    <h2>Table of Contents</h2>
+    <ol>
+      <li>Introduction</li>
+      <li>Background and Objectives</li>
+      <li>Architecture and High-Level Design</li>
+      <li>Application Actors</li>
+      <li>Organization</li>
+      <li>Development Process</li>
+      <li>Deliverables</li>
+      <li>Project Risks</li>
+      <li>Project Plan</li>
+      <li>Test Plan</li>
+      <li>References</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>1. Introduction</h2>
+    <h3>1.1 Purpose</h3>
+    <p>
+      This report describes NimbusCart, a cloud-native retail and enterprise data portal. It summarizes the project scope, architecture, application actors, development approach, deliverables, risks, schedule, testing strategy, and references.
+    </p>
+
+    <h3>1.2 Intended Audience</h3>
+    <p>The intended audience includes course evaluators, project stakeholders, developers, maintainers, and reviewers who need a clear understanding of the system and its cloud deployment model.</p>
+
+    <h3>1.3 Scope</h3>
+    <p>
+      NimbusCart provides an authenticated e-commerce experience for customers and an admin-only enterprise dashboard. The system uses microservices, AWS deployment support, Google OAuth 2.0 authentication, JWT authorization, and role-based access control for customer and admin roles.
+    </p>
+
+    <h3>1.4 Definitions and Acronyms</h3>
+    <table>
+      <tr><th>Term</th><th>Meaning</th></tr>
+      <tr><td>NimbusCart</td><td>Project name for the retail and enterprise data portal.</td></tr>
+      <tr><td>RBAC</td><td>Role-based access control using <code>customer</code> and <code>admin</code> roles.</td></tr>
+      <tr><td>JWT</td><td>JSON Web Token used for stateless API authentication.</td></tr>
+      <tr><td>ECS Fargate</td><td>AWS container runtime used to deploy application services without managing servers.</td></tr>
+      <tr><td>RDS</td><td>Amazon Relational Database Service used for PostgreSQL databases.</td></tr>
+      <tr><td>ElastiCache</td><td>AWS managed Redis service used for cart storage.</td></tr>
+      <tr><td>CI/CD</td><td>Continuous integration and continuous deployment.</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>2. Background and Objectives</h2>
+    <p>
+      Modern retail applications need secure authentication, scalable services, reliable data storage, and a repeatable cloud deployment path. NimbusCart addresses these needs by combining customer shopping workflows with enterprise data visibility for administrators.
+    </p>
+    <table>
+      <tr><th>Objective</th><th>Description</th></tr>
+      <tr><td>Secure authentication</td><td>Provide Google OAuth 2.0 sign-in and JWT-based authenticated API access.</td></tr>
+      <tr><td>Customer shopping</td><td>Support product browsing with tag filtering, Redis-backed cart management, checkout, and order tracking.</td></tr>
+      <tr><td>Admin operations</td><td>Provide enterprise views for products, customers, orders, revenue summaries, and protected product management.</td></tr>
+      <tr><td>Service separation</td><td>Use microservices so each service owns a focused responsibility.</td></tr>
+      <tr><td>Cloud deployment</td><td>Use AWS-native infrastructure and CI/CD services for deployment.</td></tr>
+    </table>
+  </section>
+
+  <section class="page-break">
+    <h2>3. Architecture and High-Level Design</h2>
+    <p>
+      NimbusCart is organized into independent services for UI, authentication and enterprise data, catalog, cart, checkout, and orders. AWS services provide load balancing, container runtime, databases, cache, secrets, logs, image storage, and deployment automation.
+    </p>
+    <div class="figure">
+      <img src="../diagrams/aws_architecture_clean.png" alt="NimbusCart AWS Architecture">
+      <div class="caption">Figure 1. NimbusCart AWS cloud architecture.</div>
+    </div>
+
+    <h3>3.1 Service Summary</h3>
+    <table>
+      <tr><th>Service</th><th>Responsibility</th><th>Data Store</th></tr>
+      <tr><td>UI</td><td>Vue 3 frontend web application for customers and admins.</td><td>None</td></tr>
+      <tr><td>Enterprise/Auth</td><td>Google OAuth, JWT issuing, RBAC, enterprise dashboard APIs.</td><td>PostgreSQL enterprise-db</td></tr>
+      <tr><td>Catalog</td><td>Product catalog and tag APIs with admin product writes.</td><td>PostgreSQL catalog-db</td></tr>
+      <tr><td>Cart</td><td>Per-user cart storage, updates, and 7-day TTL handling.</td><td>Redis</td></tr>
+      <tr><td>Checkout</td><td>Checkout orchestration that fetches cart data, creates orders, and clears the cart.</td><td>None</td></tr>
+      <tr><td>Orders</td><td>Order creation, order history, and status tracking.</td><td>PostgreSQL orders-db</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>4. Application Actors</h2>
+    <p>
+      NimbusCart has three primary application actors: visitors, customers, and admins. Google OAuth 2.0 acts as the external identity provider for sign-in.
+    </p>
+    <div class="figure">
+      <img src="../diagrams/nimbuscart_application_actors.png" alt="NimbusCart Application Actors">
+      <div class="caption">Figure 2. NimbusCart application actor and capability diagram.</div>
+    </div>
+
+    <table>
+      <tr><th>Actor</th><th>Description</th><th>Primary Capabilities</th></tr>
+      <tr><td>Visitor</td><td>Unauthenticated user.</td><td>Sign in with Google.</td></tr>
+      <tr><td>Customer</td><td>Authenticated default user role.</td><td>Browse catalog, manage cart, checkout, view orders, track order status.</td></tr>
+      <tr><td>Admin</td><td>Privileged authenticated user role.</td><td>Customer access plus enterprise dashboard and catalog product management.</td></tr>
+      <tr><td>Google OAuth 2.0</td><td>External identity provider.</td><td>Authenticates users during sign-in.</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>5. Organization</h2>
+    <p>
+      The project is organized around service ownership. Each service has a focused responsibility and can be built, tested, containerized, and deployed independently.
+    </p>
+    <table>
+      <tr><th>Area</th><th>Responsibility</th></tr>
+      <tr><td>Frontend</td><td>User interface, routing, authentication state, customer pages, and admin dashboard views.</td></tr>
+      <tr><td>Backend Services</td><td>Auth, catalog, cart, checkout, orders, and enterprise APIs.</td></tr>
+      <tr><td>Data Layer</td><td>PostgreSQL schemas for enterprise, catalog, and orders data; Redis cart storage.</td></tr>
+      <tr><td>Cloud Infrastructure</td><td>AWS CDK stack, ECS Fargate services, RDS, ElastiCache, ALB, ECR, Secrets Manager, and CloudWatch.</td></tr>
+      <tr><td>CI/CD</td><td>CodePipeline, CodeBuild, ECR image publishing, and ECS service update integration using the root buildspec.</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>6. Development Process</h2>
+    <p>
+      NimbusCart was developed using an iterative microservices approach. Authentication and UI foundations were built first, followed by catalog, cart, checkout, and orders services. Infrastructure and CI/CD support were added after the application services were functional.
+    </p>
+    <ol>
+      <li>Define service boundaries and database responsibilities.</li>
+      <li>Build authentication, JWT handling, and RBAC.</li>
+      <li>Implement customer catalog, cart, checkout, and orders flows.</li>
+      <li>Implement admin enterprise dashboard and protected APIs.</li>
+      <li>Containerize services for local and cloud deployment.</li>
+      <li>Create AWS CDK infrastructure and CI/CD pipeline support.</li>
+      <li>Document architecture, setup, deployment, and diagrams.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>7. Deliverables</h2>
+    <table>
+      <tr><th>Deliverable</th><th>Description</th><th>Status</th></tr>
+      <tr><td>Frontend application</td><td>Customer and admin UI with login, catalog, cart, orders, and enterprise pages.</td><td>Completed</td></tr>
+      <tr><td>Authentication and RBAC</td><td>Google OAuth 2.0, JWT, customer/admin roles, route guards, backend middleware.</td><td>Completed</td></tr>
+      <tr><td>Microservices</td><td>Enterprise, catalog, cart, checkout, and orders services.</td><td>Completed</td></tr>
+      <tr><td>Databases and cache</td><td>PostgreSQL schemas and Redis cart storage.</td><td>Completed</td></tr>
+      <tr><td>Docker Compose</td><td>Local development stack for services, databases, and Redis.</td><td>Completed</td></tr>
+      <tr><td>AWS CDK infrastructure</td><td>Cloud infrastructure for ECS Fargate, RDS, ElastiCache, ALB, ECR, Secrets Manager, CloudWatch, CodePipeline, and CodeBuild.</td><td>Completed</td></tr>
+      <tr><td>CI/CD build spec</td><td>CodeBuild configuration for image build, ECR push, and ECS service updates.</td><td>Completed</td></tr>
+      <tr><td>Project documentation</td><td>README, architecture diagrams, actor UML diagram, and project report.</td><td>Completed</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>8. Project Risks</h2>
+    <table>
+      <tr><th>Risk</th><th>Impact</th><th>Mitigation</th></tr>
+      <tr><td>OAuth callback misconfiguration</td><td>Users cannot sign in after deployment.</td><td>Document local and ALB callback URLs and update Google Cloud Console after deployment.</td></tr>
+      <tr><td>JWT secret mismatch</td><td>Services reject valid user tokens.</td><td>Use AWS Secrets Manager and shared environment configuration across services.</td></tr>
+      <tr><td>Database connectivity issues</td><td>Service startup or request failures.</td><td>Use health checks, service-specific environment variables, and clear security group rules.</td></tr>
+      <tr><td>Role enforcement gaps</td><td>Unauthorized access to admin actions.</td><td>Apply backend RBAC middleware and frontend route guards for admin-only features.</td></tr>
+      <tr><td>Deployment complexity</td><td>Longer setup and troubleshooting time.</td><td>Use AWS CDK and Docker-based service packaging to keep infrastructure repeatable.</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>9. Project Plan</h2>
+    <table>
+      <tr><th>Phase</th><th>Milestone</th><th>Output</th></tr>
+      <tr><td>1</td><td>Project setup and architecture planning</td><td>Service boundaries, repository structure, and implementation plan.</td></tr>
+      <tr><td>2</td><td>Authentication and frontend foundation</td><td>Google OAuth flow, JWT store, protected routes, login and home pages.</td></tr>
+      <tr><td>3</td><td>Core service implementation</td><td>Enterprise, catalog, cart, checkout, and orders services.</td></tr>
+      <tr><td>4</td><td>RBAC and admin features</td><td>Customer/admin roles, catalog write protection, enterprise dashboard.</td></tr>
+      <tr><td>5</td><td>Containerization and local stack</td><td>Dockerfiles and Docker Compose environment.</td></tr>
+      <tr><td>6</td><td>AWS infrastructure and CI/CD</td><td>CDK stack, buildspec, ECR, ECS, CodePipeline, and CodeBuild support.</td></tr>
+      <tr><td>7</td><td>Documentation and diagrams</td><td>README, AWS architecture diagram, actor UML diagram, and report.</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>10. Test Plan</h2>
+    <table>
+      <tr><th>Test Area</th><th>Purpose</th><th>Expected Result</th></tr>
+      <tr><td>Authentication</td><td>Verify Google OAuth callback, JWT generation, token storage, and logout.</td><td>User can sign in, access protected routes, and sign out.</td></tr>
+      <tr><td>RBAC</td><td>Verify customer and admin permissions.</td><td>Customers cannot access admin-only APIs or UI; admins can manage enterprise features.</td></tr>
+      <tr><td>Catalog</td><td>Verify product reads and admin product writes.</td><td>Products load for authenticated users; add/delete operations require admin role.</td></tr>
+      <tr><td>Cart</td><td>Verify add, update, remove, and clear cart operations.</td><td>Cart state persists in Redis and respects user identity.</td></tr>
+      <tr><td>Checkout</td><td>Verify cart-to-order orchestration.</td><td>Checkout creates an order and clears the cart.</td></tr>
+      <tr><td>Orders</td><td>Verify order history and detail views.</td><td>Authenticated users can view their order records and status.</td></tr>
+      <tr><td>Local stack</td><td>Verify Docker Compose startup.</td><td>All services, databases, and Redis start successfully.</td></tr>
+      <tr><td>Cloud deployment</td><td>Verify AWS infrastructure and service routing.</td><td>ALB routes requests to the correct ECS services and logs are available in CloudWatch.</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>11. References</h2>
+    <ul>
+      <li>NimbusCart repository: <code>git@github.com:AK9175/NimbusCart.git</code></li>
+      <li>Project README: <code>README.md</code></li>
+      <li>AWS architecture diagram: <code>diagrams/aws_architecture_clean.png</code></li>
+      <li>Application actors UML diagram: <code>diagrams/nimbuscart_application_actors.png</code></li>
+      <li>PlantUML source: <code>diagrams/nimbuscart_application_actors.puml</code></li>
+      <li>AWS CDK infrastructure source: <code>infrastructure/</code></li>
+      <li>Template reference: <code>Project_Plan_document.docx</code></li>
+    </ul>
+
+    <div class="note">
+      <strong>Summary:</strong> NimbusCart demonstrates a cloud-native, microservices-based retail application with secure authentication, role-based access control, managed data services, containerized deployment, and AWS-native CI/CD.
+    </div>
+  </section>
+</body>
+</html>

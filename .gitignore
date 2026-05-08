@@ -105,3 +105,5 @@ infrastructure/cdk.context.json
 .cache/
 tmp/
 temp/
+
+reports/__pycache__/

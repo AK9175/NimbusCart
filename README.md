@@ -37,6 +37,29 @@ The application supports two roles:
 - Admin enterprise dashboard for products, customers, orders, and revenue summary
 - AWS deployment with ECS Fargate, RDS, ElastiCache, ALB, ECR, Secrets Manager, CloudWatch, CodePipeline, and CodeBuild
 
+## Application Screenshots
+
+### 1. Google Sign-In
+![Google Sign-In](screenshots/app/google-sign-in.png)
+
+### 2. Customer Product Catalog
+![Customer Product Catalog](screenshots/app/customer-product-catalog.png)
+
+### 3. Shopping Cart
+![Shopping Cart](screenshots/app/shopping-cart.png)
+
+### 4. Customer Order History
+![Customer Order History](screenshots/app/customer-order-history.png)
+
+### 5. Admin Enterprise Dashboard
+![Admin Enterprise Dashboard](screenshots/app/admin-enterprise-dashboard.png)
+
+### 6. Category Inventory Management
+![Category Inventory Management](screenshots/app/category-inventory-management.png)
+
+### 7. Enterprise Analytics of Orders
+![Enterprise Analytics of Orders](screenshots/app/enterprise-order-analytics.png)
+
 ## Architecture
 
 ### AWS Cloud Architecture
@@ -134,6 +157,23 @@ Infrastructure is defined with AWS CDK in the `infrastructure/` directory.
 
 The stack provisions ECS Fargate services, RDS PostgreSQL databases, ElastiCache Redis, ECR repositories, an Application Load Balancer, Secrets Manager, CloudWatch logs, and optional CodePipeline/CodeBuild CI/CD.
 
+## Cloud Infrastructure Screenshots
+
+### ECS Services
+![ECS Services](screenshots/cloud/ecs-services.png)
+
+### RDS Databases
+![RDS Databases](screenshots/cloud/rds-databases.png)
+
+### ElastiCache Redis
+![ElastiCache Redis](screenshots/cloud/elasticache-redis.png)
+
+### Secrets Manager
+![Secrets Manager](screenshots/cloud/secrets-manager.png)
+
+### CloudFormation Stack
+![CloudFormation Stack](screenshots/cloud/cloudformation-stack.png)
+
 Deploy from the infrastructure directory:
 
 ```bash
@@ -162,6 +202,7 @@ CI/CD uses:
 NimbusCart/
 ├── diagrams/                 # Architecture and actor diagrams
 ├── infrastructure/           # AWS CDK infrastructure
+├── screenshots/              # Application and cloud screenshots
 ├── services/
 │   ├── ui/                   # Frontend application
 │   ├── enterprise/           # Auth, RBAC, enterprise APIs

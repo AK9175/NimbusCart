@@ -4,7 +4,7 @@
 ## Course: CMPE 282 - Cloud Services
 ## Professor: Andrew Bond
 
-## Team :
+## Team : Cloud9
 Student Name      |
 -------------     |
 Akshay Sunil Navani |
@@ -70,6 +70,36 @@ The application supports two roles:
 
 ![NimbusCart Application Actors](diagrams/nimbuscart_application_actors.png)
 
+### ALB Path-Based Routing
+
+```
+Internet → ALB (internet-facing, HTTP :80)
+              │
+              ├── /auth/*            → enterprise  :3000  (ECS Fargate)
+              ├── /api/enterprise/*  → enterprise  :3000
+              ├── /products/*        → catalog     :3001  (ECS Fargate)
+              ├── /cart/*            → cart         :3002  (ECS Fargate)
+              ├── /checkout/*        → checkout     :3003  (ECS Fargate)
+              ├── /orders/*          → orders       :3004  (ECS Fargate)
+              └── /* (default)       → ui           :80   (ECS Fargate / nginx)
+```
+
+### CDK Stack Resources
+
+| Resource | Config |
+|---|---|
+| VPC | 2 AZs, 1 NAT Gateway, public + private subnets |
+| Security Groups | ALB (80/443), ECS (from ALB + inter-service), DB (5432), Redis (6379) |
+| Secrets Manager | App secrets + 3 auto-generated DB passwords |
+| RDS PostgreSQL ×3 | enterprise, catalog, orders — db.t3.micro, 20 GB |
+| ElastiCache Redis | cache.t3.micro, single node |
+| ECR Repos ×6 | Lifecycle: keep last 5 images |
+| ECS Fargate ×6 | 256 vCPU / 512 MB, circuit breaker with rollback |
+| ALB | Internet-facing, path-based routing |
+| IAM | Separate execution + task roles, least-privilege |
+| CloudWatch | Per-service log groups, 1-week retention |
+| CodePipeline + CodeBuild | Optional — enabled via `githubConnectionArn` context |
+
 ## Services
 
 | Service | Port | Data Store | Responsibilities |
@@ -80,6 +110,18 @@ The application supports two roles:
 | `cart` | 3002 | Redis | Per-user cart storage with 7-day TTL |
 | `checkout` | 3003 | None | Fetch cart, create order, clear cart |
 | `orders` | 3004 | PostgreSQL | Order history and status tracking |
+
+### Inter-Service Communication
+
+Only `checkout` calls other services. All others are fully independent.
+
+```
+checkout → GET    /cart/:userId    (cart service)
+checkout → POST   /orders          (orders service)
+checkout → DELETE /cart/:userId    (cart service)
+```
+
+In production, all inter-service calls go through the ALB. `CART_SERVICE_URL` and `ORDERS_SERVICE_URL` both point to the ALB base URL; path-based routing delivers to the correct service.
 
 ## User Roles
 
@@ -92,22 +134,61 @@ New users are assigned the `customer` role by default. Admin access is granted b
 
 ## Authentication and RBAC
 
-1. User signs in with Google.
-2. The `enterprise` service handles the OAuth callback.
-3. A JWT is issued with user identity and role.
-4. The frontend stores the token.
-5. API requests send the token using `Authorization: Bearer <token>`.
-6. Backend services verify the JWT independently using the shared `JWT_SECRET`.
-7. Admin-only APIs and frontend routes are protected with role checks.
+### OAuth + JWT Flow
 
-## Data Stores
+```
+User clicks "Sign in with Google"
+  → browser → /auth/google (enterprise service)
+  → Google OAuth consent screen
+  → /auth/google/callback
+  → Passport.js upserts user in enterprise-db
+  → JWT signed with JWT_SECRET (7-day expiry)
+      payload: { id, email, name, avatar, role }
+  → redirect to frontend /?token=JWT
+  → Vue router guard captures token → localStorage + Pinia auth store
+  → All subsequent API calls: Authorization: Bearer <JWT>
+  → Each service validates JWT independently (shared JWT_SECRET)
+```
 
-| Data Store | Main Data |
+### RBAC Enforcement
+
+| Layer | Mechanism |
 |---|---|
-| `enterprise-db` | users, customers, products, orders, order items |
-| `catalog-db` | products, tags, product tags |
-| `orders-db` | orders, order items, shipping addresses |
-| Redis | `cart:{user_id}` JSON cart data with 7-day TTL |
+| Backend | `requireRole('admin')` middleware on `POST /products`, `DELETE /products/:id`, all `/api/enterprise/*` routes |
+| Frontend router | `meta: { requiresRole: 'admin' }` on `/enterprise` route — redirects customers to `/` |
+| Frontend UI | `auth.isAdmin` computed — conditionally renders enterprise nav link, stat cards, Add Product form, Delete buttons |
+
+## Database Schemas
+
+**enterprise-db**
+```sql
+users        (id SERIAL, google_id, email, name, avatar, role DEFAULT 'customer', created_at)
+customers    (id SERIAL, name, email UNIQUE, company, phone, created_at)
+products     (id SERIAL, name UNIQUE, description, price, stock, image_url, created_at)
+orders       (id SERIAL, customer_id FK, status, total, created_at)
+order_items  (id SERIAL, order_id FK, product_id, product_name, quantity, unit_price)
+```
+
+**catalog-db**
+```sql
+products      (id SERIAL, name UNIQUE, description, price NUMERIC, stock INT, image_url, created_at)
+tags          (id SERIAL, name VARCHAR UNIQUE)
+product_tags  (product_id FK, tag_id FK, PRIMARY KEY(product_id, tag_id))
+```
+
+**orders-db**
+```sql
+orders             (id SERIAL, user_id, status, total NUMERIC, created_at)
+order_items        (id SERIAL, order_id FK, product_id, product_name, quantity, unit_price)
+shipping_addresses (id SERIAL, order_id FK, name, street, city, state, zip, country)
+```
+
+**Redis**
+```
+Key:   cart:{user_id}
+Value: JSON → [{ productId, name, price, quantity }]
+TTL:   7 days (reset on every write)
+```
 
 ## Local Development
 
@@ -138,6 +219,14 @@ FRONTEND_URL=http://localhost:5174
 ```
 
 Use the same `JWT_SECRET` for all backend services.
+
+### Google OAuth Setup
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com) → APIs & Services → Credentials
+2. Create an OAuth 2.0 Client ID (Web application)
+3. Authorized JavaScript origins: `http://localhost:3000`
+4. Authorized redirect URIs: `http://localhost:3000/auth/google/callback`
+5. Paste Client ID + Secret into `services/enterprise/.env`
 
 ### Run with Docker Compose
 
@@ -174,27 +263,52 @@ The stack provisions ECS Fargate services, RDS PostgreSQL databases, ElastiCache
 ### CloudFormation Stack
 ![CloudFormation Stack](screenshots/cloud/cloudformation-stack.png)
 
-Deploy from the infrastructure directory:
+### Deploy (two-pass for UI URL)
 
 ```bash
-cd infrastructure
-npm install
-npm run build
-npx cdk deploy
+cd infrastructure && npm install
+
+# 1st deploy — creates all infrastructure
+npx cdk deploy \
+  -c googleClientId=<ID> \
+  -c googleClientSecret=<SECRET> \
+  -c jwtSecret=<STRONG_RANDOM_SECRET> \
+  -c sessionSecret=<STRONG_RANDOM_SECRET>
+
+# Copy AlbUrl from stack outputs
+# Add http://<ALB_DNS>/auth/google/callback to Google Cloud Console
+
+# 2nd deploy — rebuilds UI with real API base URL baked in
+npx cdk deploy \
+  -c albUrl=http://<ALB_DNS_FROM_OUTPUT> \
+  -c googleClientId=<ID> \
+  -c googleClientSecret=<SECRET> \
+  -c jwtSecret=<SAME_AS_ABOVE> \
+  -c sessionSecret=<SAME_AS_ABOVE>
 ```
 
-After the first deployment, add the ALB OAuth callback URL to Google Cloud Console, then redeploy with the final callback configuration if needed.
+> **Why two passes?** The Vue UI bakes `VITE_*` API URLs at Docker build time. The ALB DNS is only known after the first deploy. The second deploy rebuilds the UI image with the real URL.
 
-## CI/CD
+## CI/CD Pipeline
 
-The root `buildspec.yml` builds Docker images, pushes them to Amazon ECR, and triggers ECS service updates.
+```
+git push origin main
+        │
+        ▼
+AWS CodePipeline (Source — GitHub webhook)
+        │
+        ▼
+AWS CodeBuild (buildspec.yml)
+  ├── ECR login
+  ├── docker build × 6 services
+  ├── docker push → ECR (nimbuscart-*)
+  └── aws ecs update-service --force-new-deployment × 6
+        │
+        ▼
+ECS rolling deploy → live at ALB URL
+```
 
-CI/CD uses:
-
-- AWS CodePipeline
-- AWS CodeBuild
-- Amazon ECR
-- Amazon ECS Fargate
+Sensitive values (Google OAuth, JWT secrets) are pulled from Secrets Manager at CodeBuild time — never stored in plaintext.
 
 ## Repository Structure
 
